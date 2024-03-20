@@ -1,85 +1,31 @@
-﻿using System;
-using System.Diagnostics;
-using System.IO;
-using Axpo;
+﻿using Axpo;
+using Microsoft.Extensions.Configuration;
+using PowerTradePositions.Utils;
+using PowerTradePositions.Logging;
 
-float retryIntervalMinutes = 0.25f;
-float fetchIntervalMinutes = 0.5f;
-string folderPath = @"C:/CSV_DATA/";
-
-if (!Directory.Exists(folderPath))
+namespace PowerTradePositions
 {
-    Directory.CreateDirectory(folderPath);
-}
 
-PowerService powerService = new PowerService();
-
-DateTime dayAhead = DateTime.UtcNow.Date.AddDays(1);
-IEnumerable<PowerTrade>? trades = null;
-
-Dictionary<int, double> aggregatedVolumes = new Dictionary<int, double>();
-
-while (true)
-{
-    try
+    internal class Program
     {
-        trades = powerService.GetTrades(dayAhead);
-    }
-    catch (Exception ex)
-    {
-        int retryTime = (int)(retryIntervalMinutes * 60);
-        Console.WriteLine("Exception occurred while retrieving trades: " + ex.Message + " retrying in " + retryTime + " seconds");
-
-        Thread.Sleep(retryTime * 1000);
-
-        continue;
-    }
-
-    // Aggregate trade volumes
-    foreach (var trade in trades)
-    {
-        foreach (var period in trade.Periods)
+        public static void Main(string[] args)
         {
-            if (aggregatedVolumes.ContainsKey(period.Period))
-            {
-                aggregatedVolumes[period.Period] += period.Volume;
-            }
-            else
-            {
-                aggregatedVolumes.Add(period.Period, period.Volume);
-            }
+            var configuration = BuildConfiguration();
+            var powerService = new PowerService();
+            var logger = new Logger();
+            var reportGenerator = new ReportGenerator(configuration, powerService, logger);
+            var scheduler = new Scheduler(configuration, reportGenerator);
+
+            scheduler.StartScheduling();
         }
-    }
 
-    // Write aggregated trade data to CSV
-    string fileName = GenerateFileName(trades.First()); // Assuming trades is not null and contains at least one trade
-    string filePath = Path.Combine(folderPath, fileName);
-    WriteAggregatedTradeDataToCSV(aggregatedVolumes, filePath, trades.Count());
-    aggregatedVolumes.Clear();
-
-    Console.WriteLine("Trade successfully saved for " + dayAhead.ToString("yyyy-MM-dd"));
-
-    int fetchTime = (int)(fetchIntervalMinutes * 60 * 1000);
-    Thread.Sleep(fetchTime);
-}
-
-static string GenerateFileName(PowerTrade trade)
-{
-    string dayAheadDate = trade.Date.ToString("yyyyMMdd");
-    string extractionDateTime = DateTime.UtcNow.ToString("yyyyMMddHHmm");
-    return $"PowerPosition_{dayAheadDate}_{extractionDateTime}.csv";
-}
-
-static void WriteAggregatedTradeDataToCSV(Dictionary<int, double> aggregatedVolumes, string filePath, int count)
-{
-    using (StreamWriter writer = new StreamWriter(filePath))
-    {
-        writer.WriteLine("Period (#), Volume");
-
-        foreach (var kvp in aggregatedVolumes)
+        private static IConfiguration BuildConfiguration()
         {
-            double averageVolume = kvp.Value / count;
-            writer.WriteLine($"{kvp.Key},{averageVolume}");
+            var builder = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false);
+
+            return builder.Build();
         }
     }
 }
