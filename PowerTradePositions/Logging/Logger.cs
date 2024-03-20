@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-
+﻿// simple logging implementation 
 namespace PowerTradePositions.Logging
 {
     public class Logger
@@ -16,7 +10,7 @@ namespace PowerTradePositions.Logging
 
         public void LogError(Exception ex, string message) 
         { 
-            Console.WriteLine(ex.Message + "\n" + message);
+            Console.WriteLine(message + " Exception: " + ex.Message);
         }
     }
 }

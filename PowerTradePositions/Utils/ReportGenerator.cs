@@ -10,37 +10,41 @@ namespace PowerTradePositions.Utils
         private readonly PowerService _powerService;
         private readonly Logger _logger;
 
+        private string _folderPath;
+
         public ReportGenerator(IConfiguration configuration, PowerService powerService, Logger logger)
         {
             _configuration = configuration;
             _powerService = powerService;
             _logger = logger;
+
+            _folderPath = _configuration["FolderPath"];
         }
 
-        public void GenerateReport(DateTime dayAhead)
+        public bool GenerateReport(DateTime dayAhead)
         {
             try
             {
-                string folderPath = _configuration["FolderPath"];
                 IEnumerable<PowerTrade>? trades = _powerService.GetTrades(dayAhead);
 
                 if (trades == null || !trades.Any())
                 {
                     _logger.LogInformation($"No trades found for day ahead: {dayAhead.ToString("yyyy-MM-dd")}");
-                    return;
                 }
 
                 Dictionary<int, double> aggregatedVolumes = AggregateTradeVolumes(trades);
                 string fileName = GenerateFileName(dayAhead);
-                string filePath = Path.Combine(folderPath, fileName);
+                string filePath = Path.Combine(_folderPath, fileName);
 
                 WriteAggregatedTradeDataToCSV(aggregatedVolumes, filePath, trades.Count());
 
                 _logger.LogInformation($"Trade report successfully generated for {dayAhead.ToString("yyyy-MM-dd")}");
+                return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error generating report for day ahead: {dayAhead.ToString("yyyy-MM-dd")}");
+                return false;
             }
         }
 

@@ -14,7 +14,7 @@ namespace PowerTradePositions
             var powerService = new PowerService();
             var logger = new Logger();
             var reportGenerator = new ReportGenerator(configuration, powerService, logger);
-            var scheduler = new Scheduler(configuration, reportGenerator);
+            var scheduler = new Scheduler(configuration, reportGenerator, logger);
 
             scheduler.StartScheduling();
         }
